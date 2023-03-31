@@ -23,7 +23,7 @@ df['Rx(ppm)'] = df['Rx(ppm)'].astype(float).round(1)
 df['age_initiation(mo)'] = df['age_initiation(mo)'].astype(int)
 
 # Define unique combinations of treatments, Rx, cohort, and age_initiation(mo)
-unique_treatments = df['treatment'].unique()
+unique_treatments = sorted(df['treatment'].unique())
 
 rx_age_cohort = {}
 for treatment in unique_treatments:
