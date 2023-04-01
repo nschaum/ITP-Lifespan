@@ -8,85 +8,109 @@ from matplotlib.ticker import MultipleLocator
 from lifelines.statistics import logrank_test
 
 # Read data
-data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_2004-2016_concat.csv'
+data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_2004-2016_concat_simple.csv'
 df = pd.read_csv(data_path)
 
-# Drop rows where the 'group' column is "MetRapa", "Rapa_hi_cycle", or "Rapa_hi_start_stop"
-# This will leave only treatments that were applied continuously, and simplify things for the purposes of this app
-# We'll make another app later that includes those special cases
-df = df.drop(df[df['group'].isin(['MetRapa', 'Rapa_hi_cycle', 'Rapa_hi_start_stop'])].index)
+# Streamlit app
+st.title("Kaplan Meier Survival Analysis")
 
-# Convert 'Rx(ppm)' to float with 1 decimal place
-df['Rx(ppm)'] = df['Rx(ppm)'].astype(float).round(1)
+# Get unique treatment values
+treatment_values = sorted(df["treatment"].unique())
+selected_treatment = st.selectbox("Select a treatment", treatment_values)
 
-# Convert 'age_initiation(mo)' to integer
-df['age_initiation(mo)'] = df['age_initiation(mo)'].astype(int)
+# Get unique combinations of Rx(ppm), age_initiation(mo), and cohort for the selected treatment
+unique_combinations = df.loc[df["treatment"] == selected_treatment, ["Rx(ppm)", "age_initiation(mo)", "cohort"]].drop_duplicates()
+unique_combinations["combo"] = unique_combinations["Rx(ppm)"].astype(str) + " ppm, " + unique_combinations["age_initiation(mo)"].astype(str) + " mo, " + unique_combinations["cohort"]
 
-# Define unique combinations of treatments, Rx, cohort, and age_initiation(mo)
-unique_treatments = sorted(df['treatment'].unique())
+# Let the user select a unique combination
+selected_combo = st.selectbox("Select a cohort (dose, age of initiation, and year)", unique_combinations["combo"].tolist())
+selected_rx_ppm, selected_age_initiation, selected_cohort = selected_combo.split(", ")
 
-rx_age_cohort = {}
-for treatment in unique_treatments:
-    df_treatment = df[df['treatment'] == treatment]
-    unique_rx = df_treatment['Rx(ppm)'].unique()
-    unique_cohort = df_treatment['cohort'].unique()
-    unique_age_initiation = df_treatment['age_initiation(mo)'].unique()
-    rx_age_cohort[treatment] = [(rx, age, cohort) for rx in unique_rx for age in unique_age_initiation for cohort in unique_cohort]
+# Extract the numeric values from the selected_combo
+selected_rx_ppm = float(selected_rx_ppm.split(" ")[0])
+selected_age_initiation = int(selected_age_initiation.split(" ")[0])
 
-# Define function to filter dataframe based on user input
-def filter_dataframe(df, treatment, rx, age_initiation, cohort):
-    df_filtered = df[(df['treatment'] == treatment) & (df['Rx(ppm)'] == rx) & (df['age_initiation(mo)'] == age_initiation) & (df['cohort'] == cohort)]
-    return df_filtered
+# Let the user select the sex and site
+sex_values = ["m", "f", "m+f"]
+selected_sex = st.selectbox("Select sex (m, f, or m+f)", sex_values, index=2)
 
-# Define global variable
-statistics_table = pd.DataFrame()
+site_values = ["TJL", "UM", "UT", "All"]
+selected_site = st.selectbox("Select site (TJL, UM, UT, or All)", site_values, index=3)
 
-# Define function to create Kaplan Meier plot and statistics table
-def create_km_plot(df, treatment, rx, age_initiation, cohort):
-    # Filter dataframe
-    df_filtered = filter_dataframe(df, treatment, rx, age_initiation, cohort)
+# Filter the data based on the user's selections
+selected_data = df[(df["treatment"] == selected_treatment) & (df["Rx(ppm)"] == selected_rx_ppm) & (df["age_initiation(mo)"] == selected_age_initiation) & (df["cohort"] == selected_cohort)]
 
-    # Create Kaplan Meier curves
-    kmf_treatment = KaplanMeierFitter()
-    kmf_treatment.fit(df_filtered['age(days)'], event_observed=(df_filtered['status'] == 'dead'), label=treatment)
+# Apply the sex filter
+if selected_sex != "m+f":
+    selected_data = selected_data[selected_data["sex"] == selected_sex]
 
-    # Plot Kaplan Meier curves
-    fig, ax = plt.subplots(figsize=(8, 6))
-    kmf_treatment.plot(ax=ax, ci_show=False)
+# Apply the site filter
+if selected_site != "All":
+    selected_data = selected_data[selected_data["site"] == selected_site]
 
-    # Set plot title and axis labels
-    title = f'{treatment}'
-    ax.set_title(title)
-    ax.set_xlabel('Days')
-    ax.set_ylabel('Survival Probability')
+# Filter the control data
+control_data = df[(df["treatment"] == "Control") & (df["cohort"] == selected_cohort)]
 
-    # Add vertical line at age_initiation(mo) for treatment curve (except if treatment=control)
-    if treatment != 'Control':
-        age_initiation_days = age_initiation * 30.4  # convert age_initiation(mo) to days
-        ax.axvline(x=age_initiation_days, color='black', linestyle='--',
-                   label=None)
+# Apply the sex filter to the control data
+if selected_sex != "m+f":
+    control_data = control_data[control_data["sex"] == selected_sex]
 
-    # Add vertical line at y=0.5 for both curves
-    ax.axhline(y=0.5, color='gray', linestyle='--', label=None)
-    ax.axvline(x=kmf_treatment.median_survival_time_, ymax=0.5, color='gray', linestyle='--',
-               label=None)
+# Apply the site filter to the control data
+if selected_site != "All":
+    control_data = control_data[control_data["site"] == selected_site]
+    
+# Kaplan Meier analysis
+kmf = KaplanMeierFitter()
+kmf.fit(selected_data["age(days)"], event_observed=selected_data["dead"], label=selected_treatment.capitalize() if selected_treatment == 'control' else selected_treatment)
+kmf_control = KaplanMeierFitter()
+kmf_control.fit(control_data["age(days)"], event_observed=control_data["dead"], label="control")
 
-    # Set legend to the right of the plot
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+# Plot the Kaplan Meier curves
+fig, ax = plt.subplots(figsize=(10, 6))
+kmf.plot(ax=ax)
+kmf_control.plot(ax=ax)
 
-    # Set gridlines
-    ax.yaxis.set_major_locator(MultipleLocator(0.1))
-    ax.xaxis.set_major_locator(MultipleLocator(200))
-    ax.grid(which='both', alpha=0.5)
+ax.axhline(y=0.5, linestyle="--", color="gray")
+ax.axvline(x=selected_age_initiation * 30, linestyle="--", color="gray")
+ax.yaxis.set_major_locator(MultipleLocator(0.1))
+ax.xaxis.set_major_locator(MultipleLocator(200))
+ax.grid(True)
 
-    # Return figure object
-    return fig
+# Add vertical lines at the median survival time
+median_lifespan_selected = kmf.median_survival_time_
+median_lifespan_control = kmf_control.median_survival_time_
 
-# Define UI elements
-treatment = st.selectbox('Select a treatment', unique_treatments)
-treatment_options = rx_age_cohort[treatment]
-rx, age_initiation, cohort = st.selectbox('Select the specific cohort (year, dose, age of initiation)', treatment_options)
+selected_color = ax.get_lines()[0].get_c()
+control_color = ax.get_lines()[1].get_c()
 
-# Call function to create plot and statistics table, and pass figure object to st.pyplot()
-fig = create_km_plot(df, treatment, rx, age_initiation, cohort)
+ax.axvline(x=median_lifespan_selected, ymin=0, ymax=0.5, linestyle="--", color=selected_color)
+ax.axvline(x=median_lifespan_control, ymin=0, ymax=0.5, linestyle="--", color=control_color)
+
+# Add labels
+init_label = f"{selected_treatment} start at {selected_age_initiation} mos of age"
+ax.text(selected_age_initiation * 30 - 10, 0.01, init_label, rotation=90, va="bottom", ha="right", fontsize=10, color="gray")
+
+ax.text(median_lifespan_selected + 10, 0.01, f"{median_lifespan_selected:.1f} days", rotation=90, va="bottom", ha="left", fontsize=10, color=selected_color)
+ax.text(median_lifespan_control - 10, 0.01, f"{median_lifespan_control:.1f} days", rotation=90, va="bottom", ha="right", fontsize=10, color=control_color)
+
+ax.legend(loc="upper right", fontsize=14)
 st.pyplot(fig)
+
+# Output tables
+median_lifespan = pd.DataFrame({"Treatment": [selected_treatment, "control"],
+                                 "Median Lifespan (days)": [kmf.median_survival_time_, kmf_control.median_survival_time_],
+                                 "Max Lifespan (days)": [selected_data["age(days)"].max(), control_data["age(days)"].max()]})
+st.write(median_lifespan.set_index("Treatment"), index=False)
+
+# Log-rank test
+results = logrank_test(selected_data["age(days)"], control_data["age(days)"], event_observed_A=selected_data["dead"], event_observed_B=control_data["dead"])
+st.write("Log-Rank Test:")
+st.markdown(f"  Test statistic: {results.test_statistic:.2f}")
+if results.p_value < 0.00001:
+    st.markdown(f"  P-value: {results.p_value:.1e}")
+else:
+    st.markdown(f"  P-value: {results.p_value:.5f}")
+
+
+
+
