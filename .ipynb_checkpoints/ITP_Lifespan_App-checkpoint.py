@@ -87,7 +87,7 @@ ax.axvline(x=median_lifespan_selected, ymin=0, ymax=0.5, linestyle="--", color=s
 ax.axvline(x=median_lifespan_control, ymin=0, ymax=0.5, linestyle="--", color=control_color)
 
 # Add labels
-init_label = f"{selected_treatment} start at {selected_age_initiation} mos of age"
+init_label = f"{selected_treatment} start at {selected_age_initiation}mos of age"
 ax.text(selected_age_initiation * 30 - 10, 0.01, init_label, rotation=90, va="bottom", ha="right", fontsize=10, color="gray")
 
 ax.text(median_lifespan_selected + 10, 0.01, f"{median_lifespan_selected:.1f} days", rotation=90, va="bottom", ha="left", fontsize=10, color=selected_color)
