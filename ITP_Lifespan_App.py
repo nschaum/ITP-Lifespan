@@ -129,7 +129,3 @@ if results.p_value < 0.00001:
     st.markdown(f"  P-value: {results.p_value:.1e}")
 else:
     st.markdown(f"  P-value: {results.p_value:.5f}")
-
-
-
-
