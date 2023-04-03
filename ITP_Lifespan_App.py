@@ -7,9 +7,13 @@ import seaborn as sns
 from matplotlib.ticker import MultipleLocator
 from lifelines.statistics import logrank_test
 
-# Read data
+# Read concatenated raw data file
 data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_2004-2016_concat_simple.csv'
 df = pd.read_csv(data_path)
+
+# Read the logrank data
+logrank_data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_logrank_simple.csv'
+logrank_df = pd.read_csv(logrank_data_path)
 
 # Add a new column that combines treatment and full_name values
 df["treatment_fullname"] = df["treatment"] + ": " + df["full_name"]
@@ -42,8 +46,19 @@ selected_age_initiation = int(selected_age_initiation.split(" ")[0])
 sex_values = ["m", "f", "m+f"]
 selected_sex = st.sidebar.selectbox("Select sex (m, f, or m+f)", sex_values, index=2)
 
-site_values = ["TJL", "UM", "UT", "All"]
-selected_site = st.sidebar.selectbox("Select site (TJL, UM, UT, or All)", site_values, index=3)
+site_values = ["TJL", "UM", "UT", "TJL+UM", "TJL+UT", "UM+UT", "TJL+UM+UT"]
+selected_site = st.sidebar.selectbox("Select site (TJL, UM, UT, TJL+UM, TJL+UT, UM+UT, or TJL+UM+UT)", site_values, index=6)
+
+
+# Filter the logrank data based on the user's selections
+selected_logrank_row = logrank_df[(logrank_df['treatment'] == selected_treatment) &
+                                  (logrank_df['Rx(ppm)'] == selected_rx_ppm) &
+                                  (logrank_df['age_initiation(mo)'] == selected_age_initiation) &
+                                  (logrank_df['cohort'] == selected_cohort) &
+                                  (logrank_df['sex'] == selected_sex) &
+                                  (logrank_df['site'] == selected_site)]
+
+logrank_filtered = selected_logrank_row.copy()
 
 # Filter the data based on the user's selections
 selected_data = df[(df["treatment"] == selected_treatment) & (df["Rx(ppm)"] == selected_rx_ppm) & (df["age_initiation(mo)"] == selected_age_initiation) & (df["cohort"] == selected_cohort)]
@@ -53,8 +68,9 @@ if selected_sex != "m+f":
     selected_data = selected_data[selected_data["sex"] == selected_sex]
 
 # Apply the site filter
-if selected_site != "All":
-    selected_data = selected_data[selected_data["site"] == selected_site]
+if selected_site != "TJL+UM+UT":
+    selected_sites = selected_site.split("+")
+    selected_data = selected_data[selected_data["site"].isin(selected_sites)]
 
 # Filter the control data
 control_data = df[(df["treatment"] == "Control") & (df["cohort"] == selected_cohort)]
@@ -64,8 +80,9 @@ if selected_sex != "m+f":
     control_data = control_data[control_data["sex"] == selected_sex]
 
 # Apply the site filter to the control data
-if selected_site != "All":
-    control_data = control_data[control_data["site"] == selected_site]
+if selected_site != "TJL+UM+UT":
+    selected_sites = selected_site.split("+")
+    control_data = control_data[control_data["site"].isin(selected_sites)]
     
 # Kaplan Meier analysis
 kmf = KaplanMeierFitter()
@@ -121,11 +138,13 @@ st.write(median_lifespan.set_index("Treatment"))
 median_lifespan_diff = (kmf.median_survival_time_ - kmf_control.median_survival_time_) / kmf_control.median_survival_time_ * 100
 st.markdown(f"**Difference in median lifespan:** {median_lifespan_diff:.0f}%")
 
-# Log-rank test
-results = logrank_test(selected_data["age(days)"], control_data["age(days)"], event_observed_A=selected_data["dead"], event_observed_B=control_data["dead"])
+# Get Log-rank test results from filtered logrank_df
+test_statistic = logrank_filtered['test_statistic'].values[0]
+p_value = logrank_filtered['p-value'].values[0]
+
 st.markdown("<u>Log-Rank Test</u>", unsafe_allow_html=True)
-st.markdown(f"  Test statistic: {results.test_statistic:.2f}")
-if results.p_value < 0.00001:
-    st.markdown(f"  P-value: {results.p_value:.1e}")
+st.markdown(f"  Test statistic: {test_statistic:.2f}")
+if p_value < 0.00001:
+    st.markdown(f"  p-value: {p_value:.1e}")
 else:
-    st.markdown(f"  P-value: {results.p_value:.5f}")
+    st.markdown(f"  p-value: {p_value:.5f}")
