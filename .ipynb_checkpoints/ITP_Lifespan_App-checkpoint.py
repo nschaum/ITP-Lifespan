@@ -1,3 +1,4 @@
+# IMPORT REQUIRED PACKAGES AND DATA
 import pandas as pd
 import streamlit as st
 import numpy as np
@@ -16,29 +17,20 @@ logrank_data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_da
 logrank_df = pd.read_csv(logrank_data_path)
 
 
-# Streamlit app - adds a header with two columns to allow the user to select which page to view - the KM curve page, or the logrank table page
-st.set_page_config(page_title="ITP Lifespan Browser", layout="wide")
-
-header_columns = st.columns(2)
-
-with header_columns[0]:
-    st.title("ITP Lifespan Browser")
-    show_kaplan_meier = st.button("Kaplan-Meier Analysis")
-
-with header_columns[1]:
-    st.title(" ")
-    show_logrank_table = st.button("Log-rank Results Table")
+# Main menu for switching between pages
+st.sidebar.title("ITP Lifespan Browser")
+st.sidebar.write("This app allows you to view the survival curve for any* treatment tested by the Interventions Testing Program between 2004-2016.")
+st.sidebar.write("*Currently excludes special cases like combined treatments or treatments that were not continuous throughout the remaining lifespan. Future version will include these cases.")
+    
+menu = ["Kaplan-Meier Analysis", "Log-rank Results Table"]
+choice = st.sidebar.radio("Menu", menu)
 
 
-#DISPLAY THE FIRST PAGE OF KM CURVES
-if show_kaplan_meier:
+# DISPLAY THE FIRST PAGE
+if choice == "Kaplan-Meier Analysis":
+
     # Add a new column that combines treatment and full_name values
     df["treatment_fullname"] = df["treatment"] + ": " + df["full_name"]
-
-    # Streamlit app
-    st.sidebar.title("ITP Lifespan Browser")
-    st.sidebar.write("This app allows you to view the survival curve for any* treatment tested by the Interventions Testing Program between 2004-2016.")
-    st.sidebar.write("*Currently excludes special cases like combined treatments or treatments that were not continuous throughout the remaining lifespan. Future version will include these cases.")
 
     # Get unique treatment_fullname values
     treatment_fullname_values = sorted(df["treatment_fullname"].unique())
@@ -165,51 +157,51 @@ if show_kaplan_meier:
         st.markdown(f"  p-value: {p_value:.1e}")
     else:
         st.markdown(f"  p-value: {p_value:.5f}")
+    pass
 
-    
-    
-    
-    
-    
-# DISPLAY THE SECOND PAGE OF LOGRANK TABLE
-elif show_logrank_table:
-    
-        st.title("Sortable and Filterable Table of Log-rank Results")
-        st.write("Filter and sort the log-rank results from the input CSV.")
 
-        # Sortable table
-        columns = logrank_df.columns
-        sort_column = st.sidebar.selectbox("Select column to sort by", columns)
-        sort_order = st.sidebar.radio("Sort order", ["Ascending", "Descending"])
-        sort_ascending = True if sort_order == "Ascending" else False
-        sorted_logrank_df = logrank_df.sort_values(by=sort_column, ascending=sort_ascending)
 
-        # Filters
-        treatments = sorted(logrank_df["treatment"].unique())
-        selected_treatment_filter = st.sidebar.multiselect("Filter by treatment", treatments, default=treatments)
 
-        unique_rx_ppm = sorted(logrank_df["Rx(ppm)"].unique())
-        rx_ppm_min, rx_ppm_max = st.sidebar.slider("Filter by Rx(ppm)", int(min(unique_rx_ppm)), int(max(unique_rx_ppm)), (int(min(unique_rx_ppm)), int(max(unique_rx_ppm))))
 
-        unique_age_initiation = sorted(logrank_df["age_initiation(mo)"].unique())
-        age_initiation_min, age_initiation_max = st.sidebar.slider("Filter by age_initiation(mo)", int(min(unique_age_initiation)), int(max(unique_age_initiation)), (int(min(unique_age_initiation)), int(max(unique_age_initiation))))
+# DISPLAY THE SECOND PAGE
+elif choice == "Log-rank Results Table":
+    st.title("Logrank Results")
+    st.write("This table displays statistics and results for all ITP-tested aging interventions compared to the matching control group. It not only contains the analysis for e.g. pooled data across each of the testing sites for any particular treatment, but also for e.g. each site individually or any combination of 2 sites. Same for sex: m only, f only, or combined.")
+    st.write("The table is sortable on any column, and you can filter based on the values of any column in the lefthand sidebar.")
 
-        cohorts = sorted(logrank_df["cohort"].unique())
-        selected_cohort_filter = st.sidebar.multiselect("Filter by cohort", cohorts, default=cohorts)
+    # Sortable table
+    columns = logrank_df.columns
+    sort_column = st.sidebar.selectbox("Select column to sort by", columns)
+    sort_order = st.sidebar.radio("Sort order", ["Ascending", "Descending"])
+    sort_ascending = True if sort_order == "Ascending" else False
+    sorted_logrank_df = logrank_df.sort_values(by=sort_column, ascending=sort_ascending)
 
-        sex_values = ["m", "f", "m+f"]
-        selected_sex_filter = st.sidebar.multiselect("Filter by sex", sex_values, default=sex_values)
+    # Filters
+    treatments = sorted(logrank_df["treatment"].unique())
+    selected_treatment_filter = st.sidebar.multiselect("Filter by treatment", treatments, default=treatments)
 
-        site_values = ["TJL", "UM", "UT", "TJL+UM", "TJL+UT", "UM+UT", "TJL+UM+UT"]
-        selected_site_filter = st.sidebar.multiselect("Filter by site", site_values, default=site_values)
+    unique_rx_ppm = sorted(logrank_df["Rx(ppm)"].unique())
+    rx_ppm_min, rx_ppm_max = st.sidebar.slider("Filter by Rx(ppm)", int(min(unique_rx_ppm)), int(max(unique_rx_ppm)), (int(min(unique_rx_ppm)), int(max(unique_rx_ppm))))
 
-        filtered_logrank_df = sorted_logrank_df[
-            sorted_logrank_df["treatment"].isin(selected_treatment_filter) &
-            sorted_logrank_df["Rx(ppm)"].between(rx_ppm_min, rx_ppm_max) &
-            sorted_logrank_df["age_initiation(mo)"].between(age_initiation_min, age_initiation_max) &
-            sorted_logrank_df["cohort"].isin(selected_cohort_filter) &
-            sorted_logrank_df["sex"].isin(selected_sex_filter) &
-            sorted_logrank_df["site"].isin(selected_site_filter)
-        ]
+    unique_age_initiation = sorted(logrank_df["age_initiation(mo)"].unique())
+    age_initiation_min, age_initiation_max = st.sidebar.slider("Filter by age_initiation(mo)", int(min(unique_age_initiation)), int(max(unique_age_initiation)), (int(min(unique_age_initiation)), int(max(unique_age_initiation))))
 
-        st.write(filtered_logrank_df)
+    cohorts = sorted(logrank_df["cohort"].unique())
+    selected_cohort_filter = st.sidebar.multiselect("Filter by cohort", cohorts, default=cohorts)
+
+    sex_values = ["m", "f", "m+f"]
+    selected_sex_filter = st.sidebar.multiselect("Filter by sex", sex_values, default=sex_values)
+
+    site_values = ["TJL", "UM", "UT", "TJL+UM", "TJL+UT", "UM+UT", "TJL+UM+UT"]
+    selected_site_filter = st.sidebar.multiselect("Filter by site", site_values, default=site_values)
+
+    filtered_logrank_df = sorted_logrank_df[
+        sorted_logrank_df["treatment"].isin(selected_treatment_filter) &
+        sorted_logrank_df["Rx(ppm)"].between(rx_ppm_min, rx_ppm_max) &
+        sorted_logrank_df["age_initiation(mo)"].between(age_initiation_min, age_initiation_max) &
+        sorted_logrank_df["cohort"].isin(selected_cohort_filter) &
+        sorted_logrank_df["sex"].isin(selected_sex_filter) &
+        sorted_logrank_df["site"].isin(selected_site_filter)
+    ]
+
+    st.write(filtered_logrank_df)
