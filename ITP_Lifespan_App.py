@@ -172,21 +172,9 @@ elif choice == "Log-rank Results Table":
     st.write("This table displays statistics and results for all ITP-tested aging interventions compared to the matching control group. It not only contains the analysis for e.g. pooled data across each of the testing sites for any particular treatment, but also for e.g. each site individually or any combination of 2 sites. Same for sex: m only, f only, or combined.")
     st.write("The table is sortable on any column, and you can filter based on the values of any column in the lefthand sidebar.")
 
-    # Sortable table
-    columns = logrank_df.columns
-    sort_column = st.sidebar.selectbox("Select column to sort by", columns)
-    sort_order = st.sidebar.radio("Sort order", ["Ascending", "Descending"])
-    sort_ascending = True if sort_order == "Ascending" else False
-    sorted_logrank_df = logrank_df.sort_values(by=sort_column, ascending=sort_ascending)
-
     # Filters
     treatments = sorted(logrank_df["treatment"].unique())
     selected_treatment_filter = st.sidebar.multiselect("Filter by treatment", treatments, default=treatments, key="treatment_filter")
-
-    # Add "Select All" functionality
-    if st.sidebar.checkbox("Select all treatments", value=True):
-        selected_treatment_filter = treatments
-        st.sidebar.multiselect("Filter by treatment", treatments, default=selected_treatment_filter, key="treatment_filter_updated")
 
     unique_rx_ppm = sorted(logrank_df["Rx(ppm)"].unique())
     rx_ppm_min, rx_ppm_max = st.sidebar.slider("Filter by Rx(ppm)", int(min(unique_rx_ppm)), int(max(unique_rx_ppm)), (int(min(unique_rx_ppm)), int(max(unique_rx_ppm))))
@@ -197,37 +185,29 @@ elif choice == "Log-rank Results Table":
     cohorts = sorted(logrank_df["cohort"].unique())
     selected_cohort_filter = st.sidebar.multiselect("Filter by cohort", cohorts, default=cohorts)
 
-    # Add "Select All" functionality
-    if st.sidebar.checkbox("Select all cohorts", value=True):
-        selected_cohort_filter = cohorts
-        st.sidebar.multiselect("Filter by cohort", cohorts, default=selected_cohort_filter, key="cohort_filter_updated")
-
     sex_values = ["m", "f", "m+f"]
     selected_sex_filter = st.sidebar.multiselect("Filter by sex", sex_values, default=["m", "f"])
 
     site_values = ["TJL", "UM", "UT", "TJL+UM", "TJL+UT", "UM+UT", "TJL+UM+UT"]
     selected_site_filter = st.sidebar.multiselect("Filter by site", site_values, default=["TJL+UM+UT"])
 
-    
-
-    filtered_logrank_df = sorted_logrank_df[
-        sorted_logrank_df["treatment"].isin(selected_treatment_filter) &
-        sorted_logrank_df["Rx(ppm)"].between(rx_ppm_min, rx_ppm_max) &
-        sorted_logrank_df["age_initiation(mo)"].between(age_initiation_min, age_initiation_max) &
-        sorted_logrank_df["cohort"].isin(selected_cohort_filter) &
-        sorted_logrank_df["sex"].isin(selected_sex_filter) &
-        sorted_logrank_df["site"].isin(selected_site_filter)
+    filtered_logrank_df = logrank_df[
+        logrank_df["treatment"].isin(selected_treatment_filter) &
+        logrank_df["Rx(ppm)"].between(rx_ppm_min, rx_ppm_max) &
+        logrank_df["age_initiation(mo)"].between(age_initiation_min, age_initiation_max) &
+        logrank_df["cohort"].isin(selected_cohort_filter) &
+        logrank_df["sex"].isin(selected_sex_filter) &
+        logrank_df["site"].isin(selected_site_filter)
     ]
 
+        
     # formatting for values in the table, like remove decimal places
     filtered_logrank_df['%_lifespan_increase'] = filtered_logrank_df['%_lifespan_increase'].round(1)
     filtered_logrank_df['test_statistic'] = filtered_logrank_df['test_statistic'].round(1)
     # Convert p-value to scientific notation if the value is < 0.001
     filtered_logrank_df['p-value'] = filtered_logrank_df['p-value'].apply(lambda x: f'{x:.1e}' if x < 0.001 else f'{x:.3f}')
     
-        
-    # Display the filtered and sorted table without the index column
-    st.write(filtered_logrank_df.reset_index().drop(columns=['index']))
+    st.write(filtered_logrank_df.reset_index().drop(columns=['index']))      
 
 # If the user chooses an invalid option, display an error message
 else:
