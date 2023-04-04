@@ -210,8 +210,12 @@ elif choice == "Log-rank Results Table":
     filtered_logrank_df['test_statistic'] = filtered_logrank_df['test_statistic'].round(1)
     # Convert p-value to scientific notation if the value is < 0.001
     filtered_logrank_df['p-value'] = filtered_logrank_df['p-value'].apply(lambda x: f'{x:.1e}' if x < 0.001 else f'{x:.3f}')
-    
-    st.write(filtered_logrank_df.reset_index().drop(columns=['index']))      
+        
+    # Exclude the specific columns
+    filtered_logrank_df_display = filtered_logrank_df.drop(columns=['group', 'full_name', 'treatment_fullname'])
+    # Display the table without the excluded columns
+    st.write(filtered_logrank_df_display.reset_index().drop(columns=['index']))
+
 
 # If the user chooses an invalid option, display an error message
 else:
