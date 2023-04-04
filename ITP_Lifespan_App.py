@@ -173,9 +173,13 @@ elif choice == "Log-rank Results Table":
     st.write("The table is sortable on any column, and you can filter based on the values of any column in the lefthand sidebar.")
 
     # Filters
-    treatments = sorted(logrank_df["treatment"].unique())
-    selected_treatment_filter = st.sidebar.multiselect("Filter by treatment", treatments, default=treatments, key="treatment_filter")
+    # Add a new column that combines treatment and full_name values
+    logrank_df["treatment_fullname"] = logrank_df["treatment"] + ": " + logrank_df["full_name"]
 
+    # Get unique treatment_fullname values
+    treatment_fullname_values = sorted(logrank_df["treatment_fullname"].unique())
+    selected_treatment_fullname = st.sidebar.multiselect("Select a treatment", treatment_fullname_values, default=treatment_fullname_values, key="treatment_filter")  
+    
     unique_rx_ppm = sorted(logrank_df["Rx(ppm)"].unique())
     rx_ppm_min, rx_ppm_max = st.sidebar.slider("Filter by Rx(ppm)", int(min(unique_rx_ppm)), int(max(unique_rx_ppm)), (int(min(unique_rx_ppm)), int(max(unique_rx_ppm))))
 
@@ -192,7 +196,7 @@ elif choice == "Log-rank Results Table":
     selected_site_filter = st.sidebar.multiselect("Filter by site", site_values, default=["TJL+UM+UT"])
 
     filtered_logrank_df = logrank_df[
-        logrank_df["treatment"].isin(selected_treatment_filter) &
+        logrank_df["treatment_fullname"].isin(selected_treatment_fullname) &
         logrank_df["Rx(ppm)"].between(rx_ppm_min, rx_ppm_max) &
         logrank_df["age_initiation(mo)"].between(age_initiation_min, age_initiation_max) &
         logrank_df["cohort"].isin(selected_cohort_filter) &
