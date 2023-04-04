@@ -225,8 +225,9 @@ elif choice == "Log-rank Results Table":
     # Convert p-value to scientific notation if the value is < 0.001
     filtered_logrank_df['p-value'] = filtered_logrank_df['p-value'].apply(lambda x: f'{x:.1e}' if x < 0.001 else f'{x:.3f}')
     
+        
     # Display the filtered and sorted table without the index column
-    st.write(filtered_logrank_df.reset_index(drop=True))
+    st.write(filtered_logrank_df.reset_index().drop(columns=['index']))
 
 # If the user chooses an invalid option, display an error message
 else:
