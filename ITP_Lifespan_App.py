@@ -179,30 +179,30 @@ elif choice == "Log-rank Results Table":
 
     # Get unique treatment_fullname values
     treatment_fullname_values = sorted(logrank_df["treatment_fullname"].unique())
-    selected_treatment_fullname = st.sidebar.multiselect("Select a treatment", treatment_fullname_values, default=treatment_fullname_values, key="treatment_filter")  
-    
-    unique_rx_ppm = sorted(logrank_df["Rx(ppm)"].unique())
-    rx_ppm_min, rx_ppm_max = st.sidebar.slider("Filter by Rx(ppm)", int(min(unique_rx_ppm)), int(max(unique_rx_ppm)), (int(min(unique_rx_ppm)), int(max(unique_rx_ppm))))
-
-    unique_age_initiation = sorted(logrank_df["age_initiation(mo)"].unique())
-    age_initiation_min, age_initiation_max = st.sidebar.slider("Filter by age_initiation(mo)", int(min(unique_age_initiation)), int(max(unique_age_initiation)), (int(min(unique_age_initiation)), int(max(unique_age_initiation))))
-
-    cohorts = sorted(logrank_df["cohort"].unique())
-    selected_cohort_filter = st.sidebar.multiselect("Filter by cohort", cohorts, default=cohorts)
-
+    selected_treatment_fullname = st.sidebar.multiselect("Filter by treatment", treatment_fullname_values, default=treatment_fullname_values, key="treatment_filter")  
+          
     sex_values = ["m", "f", "m+f"]
     selected_sex_filter = st.sidebar.multiselect("Filter by sex", sex_values, default=["m", "f"])
 
     site_values = ["TJL", "UM", "UT", "TJL+UM", "TJL+UT", "UM+UT", "TJL+UM+UT"]
     selected_site_filter = st.sidebar.multiselect("Filter by site", site_values, default=["TJL+UM+UT"])
+    
+    rx_ppm_values = sorted(logrank_df["Rx(ppm)"].unique())
+    selected_rx_ppm = st.sidebar.multiselect("Filter by dose (ppm)", rx_ppm_values, default=rx_ppm_values)
+
+    age_initiation_values = sorted(logrank_df["age_initiation(mo)"].unique())
+    selected_age_initiation = st.sidebar.multiselect("Filter by age of initiation (mo)", age_initiation_values, default=age_initiation_values)
+
+    cohorts = sorted(logrank_df["cohort"].unique())
+    selected_cohort_filter = st.sidebar.multiselect("Filter by cohort", cohorts, default=cohorts)
 
     filtered_logrank_df = logrank_df[
         logrank_df["treatment_fullname"].isin(selected_treatment_fullname) &
-        logrank_df["Rx(ppm)"].between(rx_ppm_min, rx_ppm_max) &
-        logrank_df["age_initiation(mo)"].between(age_initiation_min, age_initiation_max) &
-        logrank_df["cohort"].isin(selected_cohort_filter) &
         logrank_df["sex"].isin(selected_sex_filter) &
-        logrank_df["site"].isin(selected_site_filter)
+        logrank_df["site"].isin(selected_site_filter) &
+        logrank_df["Rx(ppm)"].isin(selected_rx_ppm) &
+        logrank_df["age_initiation(mo)"].isin(selected_age_initiation) &
+        logrank_df["cohort"].isin(selected_cohort_filter)
     ]
 
         
