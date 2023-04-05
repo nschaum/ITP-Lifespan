@@ -9,7 +9,7 @@ from matplotlib.ticker import MultipleLocator
 from lifelines.statistics import logrank_test
 
 # Read concatenated raw data file
-data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_2004-2016_concat_simple.csv'
+data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_2004-2017_concat_simple.csv'
 df = pd.read_csv(data_path)
 
 # Read the logrank data
@@ -99,15 +99,16 @@ if choice == "Kaplan-Meier Analysis":
     kmf.fit(selected_data["age(days)"], event_observed=selected_data["dead"], label=selected_treatment.capitalize() if selected_treatment == 'control' else selected_treatment)
     kmf_control = KaplanMeierFitter()
     kmf_control.fit(control_data["age(days)"], event_observed=control_data["dead"], label="control")
+    
 
     # Plot the Kaplan Meier curves
     fig, ax = plt.subplots(figsize=(10, 6))
-    kmf.plot(ax=ax)
-    kmf_control.plot(ax=ax)
+    kmf.plot(ax=ax, c="darkorange")
+    kmf_control.plot(ax=ax,c="gray")
 
     ax.set_title(selected_treatment_fullname, fontsize=20)
 
-    ax.axhline(y=0.5, linestyle="--", color="gray")
+    #ax.axhline(y=0.5, linestyle="--", color="gray")
     ax.axvline(x=selected_age_initiation * 30, linestyle="--", color="gray")
     ax.yaxis.set_major_locator(MultipleLocator(0.1))
     ax.xaxis.set_major_locator(MultipleLocator(200))
