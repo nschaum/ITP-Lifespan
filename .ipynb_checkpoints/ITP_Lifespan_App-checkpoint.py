@@ -9,11 +9,11 @@ from matplotlib.ticker import MultipleLocator
 from lifelines.statistics import logrank_test
 
 # Read concatenated raw data file
-data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_2004-2017_concat_simple.csv'
+data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_2004-2017_concat.csv'
 df = pd.read_csv(data_path)
 
 # Read the logrank data
-logrank_data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_logrank_simple.csv'
+logrank_data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_logrank.csv'
 logrank_df = pd.read_csv(logrank_data_path)
 
 st.set_page_config(layout="wide")
@@ -96,6 +96,11 @@ if choice == "Kaplan-Meier Analysis":
 
     # Kaplan Meier analysis
     kmf = KaplanMeierFitter()
+    
+    #these lines just print out the data the graph is derived from. used it to check why PB125 wasn't working - it was empty due to a nan in Rx(ppm), so changed the value to 0 instead.
+    #st.write("Selected data:")
+    #st.write(selected_data)
+
     kmf.fit(selected_data["age(days)"], event_observed=selected_data["dead"], label=selected_treatment.capitalize() if selected_treatment == 'control' else selected_treatment)
     kmf_control = KaplanMeierFitter()
     kmf_control.fit(control_data["age(days)"], event_observed=control_data["dead"], label="control")
