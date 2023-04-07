@@ -180,8 +180,19 @@ elif choice == "Log-rank Results Table":
 
     # Filters
     # Add a new column that combines treatment and full_name values
-    logrank_df["treatment_fullname"] = logrank_df["treatment"] + ": " + logrank_df["full_name"]
+    #logrank_df["treatment_fullname"] = logrank_df["treatment"] + ": " + logrank_df["full_name"]
+    # Custom function to create treatment_fullname based on the presence of treatment2
+    def create_treatment_fullname(row):
+        if pd.isna(row["treatment2"]):
+            return row["treatment"] + ": " + row["full_name"]
+        else:
+            return row["treatment"] + " + " + row["treatment2"] + ": " + row["full_name"] + " + " + row["full_name2"]
 
+    # Use apply with the custom function to create the treatment_fullname column
+    logrank_df["treatment_fullname"] = logrank_df.apply(create_treatment_fullname, axis=1)
+
+    
+    
     # Get unique treatment_fullname values
     treatment_fullname_values = sorted(logrank_df["treatment_fullname"].unique())
     selected_treatment_fullname = st.sidebar.multiselect("Filter by treatment", treatment_fullname_values, default=treatment_fullname_values, key="treatment_filter")  
