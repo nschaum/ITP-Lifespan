@@ -1,4 +1,4 @@
-# IMPORT REQUIRED PACKAGES AND DATA
+### IMPORT REQUIRED PACKAGES AND DATA
 import pandas as pd
 import streamlit as st
 import numpy as np
@@ -8,7 +8,7 @@ import seaborn as sns
 from matplotlib.ticker import MultipleLocator
 from lifelines.statistics import logrank_test
 
-# Read concatenated raw data file
+# Read concatenated and cleaned raw data file
 data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\ITP_processed_data\\ITP_2004-2017_concat.csv'
 df = pd.read_csv(data_path)
 
@@ -27,52 +27,84 @@ menu = ["Kaplan-Meier Analysis", "Log-rank Results Table"]
 choice = st.sidebar.radio("Menu", menu)
 
 
-# DISPLAY THE FIRST PAGE
+### DISPLAY THE FIRST PAGE
+### The first page is just a simple Kaplan Meier curve viewer where the use can plot one treatment curve vs. the appropriate control curve
 if choice == "Kaplan-Meier Analysis":
-
-    # Add a new column that combines treatment and full_name values
-    df["treatment_fullname"] = df["treatment"] + ": " + df["full_name"]
-
-    # Get unique treatment_fullname values
+    
+### Step 1: Create a dropdown menu so the user can select a treatment type of interest, e.g. Rapa: rapamycin, or Met: metformin
+# I'd like to show both the abbreviated treatmnt name (in treatment column) and the full name (in full_name column). If it's a combo treatment, we need to show both drugs names.
+    
+# Function to create a list of values that contain all the treatments in the df, combined with their respective full names. If a row of df has values for treatment2 and full_name2 that indicate it is a combination drug treatment, the second drug abbreviation and name is also added. This list is stored in treatment_fullname. This iterates over all rows of df so there will be repeats
+    def create_treatment_fullname(row):
+        if pd.isna(row["treatment2"]):
+            return row["treatment"] + ": " + row["full_name"]
+        else:
+            return row["treatment"] + " + " + row["treatment2"] + ": " + row["full_name"] + " + " + row["full_name2"]
+    df["treatment_fullname"] = df.apply(create_treatment_fullname, axis=1)
+    
+# Get unique treatment_fullname values (get rid of all the repeats in treatment_fullname), sort them alphabetically, and display them in a dropdown menu for the user to select
     treatment_fullname_values = sorted(df["treatment_fullname"].unique())
     selected_treatment_fullname = st.sidebar.selectbox("Select a treatment", treatment_fullname_values)
 
-    # Get the corresponding treatment value from the selected treatment_fullname
-    selected_treatment = selected_treatment_fullname.split(": ")[0]
+    
+### Step 2: Create a second dropdown menu for the user to specify a specific cohort within the treatment of interest they selected. This will show users the details of the different cohorts wihtin the selected treatment of interest, like the dose, age of initiation, etc.
+    
+# First we need to match the user's selction of treatment(s) back to the other values in df that specify the details of each time that treatment has been tested, since it may have been tested more than once in different years, at different doses, etc. 
+    # Custom function to create combo string based that will be displayed in the dropdown menu. This will be called by 'apply' later in the code
+    def create_combo_string(row):
+        base_string = f"{row['Rx(ppm)']} ppm, {row['age_initiation(mo)']} mo, {row['cohort']}"
+        if pd.notna(row["treatment2"]) and pd.notna(row["Rx(ppm)2"]):
+            base_string = f"{row['Rx(ppm)']} ppm + {row['Rx(ppm)2']} ppm, {row['age_initiation(mo)']} mo, {row['cohort']}"
+        return base_string
+    
+# Take the user's selection and extract the information needed to match that selection to the appropirate rows of df to get the correct info for cohort, age of initiation, dose, etc.
+    # Split the selected_treatment_fullname by ":"
+    selected_treatment = selected_treatment_fullname.split(":")[0].strip()
 
-    # Get unique combinations of Rx(ppm), age_initiation(mo), and cohort for the selected treatment
-    unique_combinations = df.loc[df["treatment"] == selected_treatment, ["Rx(ppm)", "age_initiation(mo)", "cohort"]].drop_duplicates()
-    unique_combinations["combo"] = unique_combinations["Rx(ppm)"].astype(str) + " ppm, " + unique_combinations["age_initiation(mo)"].astype(str) + " mo, " + unique_combinations["cohort"]
+    # If the selected_treatment contains " + " (i.e. it is a drug combination treatment), split by " + " and store those two values, else store just the single treatment
+    if " + " in selected_treatment:
+        selected_treatments = tuple(selected_treatment.split(" + "))
+    else:
+        selected_treatments = (selected_treatment,)
 
-    # Let the user select a unique combination
+    # Filter df based on the selected_treatments, and get the unique combinations of values like treatment, dose, cohort, which define the individual experiments within the same value of treatment
+    # Filter the DataFrame based on the selected_treatments.
+    if len(selected_treatments) == 1:
+        unique_combinations = df[
+            (df["treatment"] == selected_treatments[0]) &
+            (pd.isna(df["treatment2"]))
+        ]
+    else:
+        unique_combinations = df[
+            (df["treatment"] == selected_treatments[0]) &
+            (df["treatment2"] == selected_treatments[1])
+        ]
+    unique_combinations = unique_combinations[["group", "treatment", "treatment2", "Rx(ppm)", "age_initiation(mo)", "cohort", "Rx(ppm)2"]].drop_duplicates()
+
+    # Extract the specific info we want to display in the dropdown menu, like dose, age of initiation, cohort, and the 2nd drug dose, if it exists.
+    unique_combinations["combo"] = unique_combinations.apply(create_combo_string, axis=1)
+
+    # Let the user select a unique combination in the dropdown menu
     selected_combo = st.sidebar.selectbox("Select a cohort (dose, age of initiation, and year)", unique_combinations["combo"].tolist())
-    selected_rx_ppm, selected_age_initiation, selected_cohort = selected_combo.split(", ")
+    selected_rx_ppm, selected_age_initiation, selected_cohort, *rest = selected_combo.split(", ")
 
-    # Extract the numeric values from the selected_combo
-    selected_rx_ppm = float(selected_rx_ppm.split(" ")[0])
-    selected_age_initiation = int(selected_age_initiation.split(" ")[0])
-
-    # Let the user select the sex and site
+### Step 3: Make dropdown menues so the user can further filter by sex and site, if desired
     sex_values = ["m", "f", "m+f"]
     selected_sex = st.sidebar.selectbox("Select sex (m, f, or m+f)", sex_values, index=2)
-
+    
     site_values = ["TJL", "UM", "UT", "TJL+UM", "TJL+UT", "UM+UT", "TJL+UM+UT"]
     selected_site = st.sidebar.selectbox("Select site (TJL, UM, UT, TJL+UM, TJL+UT, UM+UT, or TJL+UM+UT)", site_values, index=6)
 
+### Step 4: Filter df to include only those rows matching the user's selections
+    # Again need to treat the cases where there is 1 or 2 treatments differently, here based on the length of the tuple selected_treatments
+    if len(selected_treatments) == 1:
+        selected_data = df[(df["treatment"] == selected_treatments[0]) & (df["Rx(ppm)"] == selected_rx_ppm) & (df["age_initiation(mo)"] == selected_age_initiation) & (df["cohort"] == selected_cohort)]
+    else:
+        selected_dose = selected_treatment_fullname.split(":")[1].strip()
+        selected_doses = tuple(dose[:-4].strip() for dose in selected_dose.split(" + "))
+        selected_data = df[(df["treatment"] == selected_treatments[0]) & (df["Rx(ppm)"] == selected_doses[0]) & (df["treatment2"] == selected_treatment[1]) & (df["Rx(ppm)2"] == selected_doses[1]) & (df["age_initiation(mo)"] == selected_age_initiation) & (df["cohort"] == selected_cohort)]
 
-    # Filter the logrank data based on the user's selections
-    selected_logrank_row = logrank_df[(logrank_df['treatment'] == selected_treatment) &
-                                      (logrank_df['Rx(ppm)'] == selected_rx_ppm) &
-                                      (logrank_df['age_initiation(mo)'] == selected_age_initiation) &
-                                      (logrank_df['cohort'] == selected_cohort) &
-                                      (logrank_df['sex'] == selected_sex) &
-                                      (logrank_df['site'] == selected_site)]
-
-    logrank_filtered = selected_logrank_row.copy()
-
-    # Filter the data based on the user's selections
-    selected_data = df[(df["treatment"] == selected_treatment) & (df["Rx(ppm)"] == selected_rx_ppm) & (df["age_initiation(mo)"] == selected_age_initiation) & (df["cohort"] == selected_cohort)]
-
+    # sex and site must be filtered a bit differently since we added
     # Apply the sex filter
     if selected_sex != "m+f":
         selected_data = selected_data[selected_data["sex"] == selected_sex]
@@ -82,89 +114,33 @@ if choice == "Kaplan-Meier Analysis":
         selected_sites = selected_site.split("+")
         selected_data = selected_data[selected_data["site"].isin(selected_sites)]
 
-    # Filter the control data
+### Step 5: Filter df to include only those rows matching the appropriate control group based on the user's selections
+    
+    # Filter df to get the control mice corresponding to the cohort the user selected
     control_data = df[(df["treatment"] == "Control") & (df["cohort"] == selected_cohort)]
 
-    # Apply the sex filter to the control data
+    # Apply the sex filter to df to match the user selection
     if selected_sex != "m+f":
         control_data = control_data[control_data["sex"] == selected_sex]
 
-    # Apply the site filter to the control data
+    # Apply the site filter to df to match the user selection
     if selected_site != "TJL+UM+UT":
         selected_sites = selected_site.split("+")
         control_data = control_data[control_data["site"].isin(selected_sites)]
 
-    # Kaplan Meier analysis
-    kmf = KaplanMeierFitter()
+    print("Number of NaN values in the selected_data 'age(days)' column:", selected_data["age(days)"].isna().sum())
+    print("Number of NaN values in the control_data 'age(days)' column:", control_data["age(days)"].isna().sum())
     
-    #these lines just print out the data the graph is derived from. used it to check why PB125 wasn't working - it was empty due to a nan in Rx(ppm), so changed the value to 0 instead.
-    #st.write("Selected data:")
-    #st.write(selected_data)
+    ### Step 6: Plot the Kaplan Meier curve of the selected treatment vs. the appropriate control
 
-    kmf.fit(selected_data["age(days)"], event_observed=selected_data["dead"], label=selected_treatment.capitalize() if selected_treatment == 'control' else selected_treatment)
-    kmf_control = KaplanMeierFitter()
-    kmf_control.fit(control_data["age(days)"], event_observed=control_data["dead"], label="control")
-    
 
-    # Plot the Kaplan Meier curves
-    fig, ax = plt.subplots(figsize=(10, 6))
-    kmf.plot(ax=ax, c="darkorange")
-    kmf_control.plot(ax=ax,c="gray")
+ 
 
-    ax.set_title(selected_treatment_fullname, fontsize=20)
 
-    #ax.axhline(y=0.5, linestyle="--", color="gray")
-    ax.axvline(x=selected_age_initiation * 30, linestyle="--", color="gray")
-    ax.yaxis.set_major_locator(MultipleLocator(0.1))
-    ax.xaxis.set_major_locator(MultipleLocator(200))
-    ax.grid(True)
 
-    # Add vertical lines at the median survival time
-    median_lifespan_selected = kmf.median_survival_time_
-    median_lifespan_control = kmf_control.median_survival_time_
 
-    selected_color = ax.get_lines()[0].get_c()
-    control_color = ax.get_lines()[1].get_c()
 
-    ax.axvline(x=median_lifespan_selected, ymin=0, ymax=0.5, linestyle="--", color=selected_color)
-    ax.axvline(x=median_lifespan_control, ymin=0, ymax=0.5, linestyle="--", color=control_color)
 
-    # Add labels
-    init_label = f"{selected_treatment} start at {selected_age_initiation}mos of age"
-    ax.text(selected_age_initiation * 30 - 10, 0.01, init_label, rotation=90, va="bottom", ha="right", fontsize=12, color="gray")
-
-    # Adds labels on a particular side of the line depending on where the lines are located so the labels don't overlap
-    if median_lifespan_selected > median_lifespan_control:
-        ax.text(median_lifespan_selected + 10, 0.01, f"{median_lifespan_selected:.1f} days", rotation=90, va="bottom", ha="left", fontsize=12, color=selected_color)
-        ax.text(median_lifespan_control - 10, 0.01, f"{median_lifespan_control:.1f} days", rotation=90, va="bottom", ha="right", fontsize=12, color=control_color)
-    else:
-        ax.text(median_lifespan_selected - 10, 0.01, f"{median_lifespan_selected:.1f} days", rotation=90, va="bottom", ha="right", fontsize=12, color=selected_color)
-        ax.text(median_lifespan_control + 10, 0.01, f"{median_lifespan_control:.1f} days", rotation=90, va="bottom", ha="left", fontsize=12, color=control_color)
-
-    ax.legend(loc="upper right", fontsize=14)
-    st.pyplot(fig)
-
-    # Output tables
-    median_lifespan = pd.DataFrame({"Treatment": [selected_treatment, "control"],
-                                     "Median Lifespan (days)": [kmf.median_survival_time_, kmf_control.median_survival_time_],
-                                     "Max Lifespan (days)": [selected_data["age(days)"].max(), control_data["age(days)"].max()]})
-    st.write(median_lifespan.set_index("Treatment"))
-
-    # Calculate percentage difference between treatment and control median lifespans
-    median_lifespan_diff = (kmf.median_survival_time_ - kmf_control.median_survival_time_) / kmf_control.median_survival_time_ * 100
-    st.markdown(f"**Difference in median lifespan:** {median_lifespan_diff:.0f}%")
-
-    # Get Log-rank test results from filtered logrank_df
-    test_statistic = logrank_filtered['test_statistic'].values[0]
-    p_value = logrank_filtered['p-value'].values[0]
-
-    st.markdown("<u>Log-Rank Test</u>", unsafe_allow_html=True)
-    st.markdown(f"  Test statistic: {test_statistic:.2f}")
-    if p_value < 0.00001:
-        st.markdown(f"  p-value: {p_value:.1e}")
-    else:
-        st.markdown(f"  p-value: {p_value:.5f}")
-    pass
 
 
 
@@ -180,8 +156,7 @@ elif choice == "Log-rank Results Table":
 
     # Filters
     # Add a new column that combines treatment and full_name values
-    #logrank_df["treatment_fullname"] = logrank_df["treatment"] + ": " + logrank_df["full_name"]
-    # Custom function to create treatment_fullname based on the presence of treatment2
+    # Custom function to create treatment_fullname based on the presence of treatment2 (which is most often empty when there is only a single treatment)
     def create_treatment_fullname(row):
         if pd.isna(row["treatment2"]):
             return row["treatment"] + ": " + row["full_name"]
@@ -191,8 +166,6 @@ elif choice == "Log-rank Results Table":
     # Use apply with the custom function to create the treatment_fullname column
     logrank_df["treatment_fullname"] = logrank_df.apply(create_treatment_fullname, axis=1)
 
-    
-    
     # Get unique treatment_fullname values
     treatment_fullname_values = sorted(logrank_df["treatment_fullname"].unique())
     selected_treatment_fullname = st.sidebar.multiselect("Filter by treatment", treatment_fullname_values, default=treatment_fullname_values, key="treatment_filter")  
