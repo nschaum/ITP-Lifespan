@@ -1,3 +1,7 @@
+###2023-08-20
+###This is the working app:
+###Power analysis and cost estimates
+
 import streamlit as st
 import pandas as pd
 import statsmodels.stats.power as smp

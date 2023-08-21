@@ -76,7 +76,7 @@ def bootstrap_estimate(n_mice, required_mice, purchase_age, desired_age, data, n
     return pd.Series(required_mice_samples), best_dataset, worst_dataset
 
 def main():
-    st.title("Mouse Sample Size Forcaster")
+    st.title("Mouse Sample Size Forecaster")
 
     # Add the introduction paragraph
     st.markdown("""Given a specific number of mice needed at a desired age, this app calculates the number of mice you should initially start with. This prediction is based on survival data from control mice (HET3s) used by the Interventions Testing Program (ITP) from cohorts 2004-2017. You may optionally select an individual cohort or any combination of cohorts instead of all cohorts. Note that the 2017 has unusually low survival, so it may be unwise (or perhaps wise if one wants to be conservative) to use that cohort.""")
