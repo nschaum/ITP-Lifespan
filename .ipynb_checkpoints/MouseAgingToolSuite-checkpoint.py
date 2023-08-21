@@ -154,8 +154,8 @@ def cost_estimation_page():
     
     
     # Plotting the heatmap of total cost based on daily cage cost and mouse cost
-    daily_cage_cost_range = np.arange(2, 21, 2)  # $2, $4, ..., $20
-    mouse_price_range = np.arange(50, 501, 50)   # $50, $100, ..., $500
+    daily_cage_cost_range = np.arange(0.5, 12.1, 0.5)  # $2, $4, ..., $20
+    mouse_price_range = np.arange(25, 501, 25)   # $50, $100, ..., $500
     
     # Initialize an empty matrix to store total costs
     total_costs = np.zeros((len(mouse_price_range), len(daily_cage_cost_range)))
@@ -235,11 +235,27 @@ def bootstrap_page():
 
         return required_mice, adjusted_surv_prob
 
+    #original function that included censored data
+    #def plot_survival_curve(ax, data, sex):
+       # kmf = KaplanMeierFitter()
+      #  kmf.fit(data['age(days)'], event_observed=data['dead'])
+     #   kmf.plot(ax=ax, label=f'{sex} (n={len(data)}) Median: {int(kmf.median_survival_time_)} days')
+
+        #functions for both including or excluding censored data
     def plot_survival_curve(ax, data, sex):
         kmf = KaplanMeierFitter()
-        kmf.fit(data['age(days)'], event_observed=data['dead'])
-        kmf.plot(ax=ax, label=f'{sex} (n={len(data)}) Median: {int(kmf.median_survival_time_)} days')
 
+        # Original Kaplan-Meier curve (including censored data)
+       # kmf.fit(data['age(days)'], event_observed=data['dead'])
+        #kmf.plot(ax=ax, label=f'{sex} (n={len(data)}) Median: {int(kmf.median_survival_time_)} days - Including Censored Data')
+
+        # Excluding censored data
+        uncensored_data = data[data['dead'] == True]
+        kmf.fit(uncensored_data['age(days)'], event_observed=uncensored_data['dead'])
+        kmf.plot(ax=ax, label=f'{sex} (n={len(uncensored_data)}) Median: {int(kmf.median_survival_time_)} days')
+
+        
+        
     def bootstrap_estimate(n_mice, required_mice, purchase_age, desired_age, data, n_iterations=10):
         required_mice_samples = []
         median_survivals = []  # To store median survivals
