@@ -212,9 +212,9 @@ def compute_required_sample_size(sex_filter, alpha, power_range, effect_size_ran
     return power_values, effect_size_values, sample_sizes
 
 # Page selection
-page = st.sidebar.radio("Choose a page:", ["Power Analysis & Heatmaps", "Cost Estimations/Calculators"])
+page = st.sidebar.radio("Choose a page:", ["Power Analysis & Heatmaps", "Mouse Cost Calculator"])
 
 if page == "Power Analysis & Heatmaps":
     power_analysis_page()
-elif page == "Cost Estimations/Calculators":
+elif page == "Mouse Cost Calculator":
     cost_estimation_page()
