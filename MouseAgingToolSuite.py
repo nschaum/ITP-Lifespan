@@ -17,7 +17,7 @@ purchase_data_path = 'C:\\Users\\ndsch\\Data\\ITP-Lifespan-Data\\Mouse_costs\\JA
 purchase_data = pd.read_csv(purchase_data_path)
 
 # Title for the Streamlit app
-st.title('Power Analysis & Cost Estimation App')
+st.title('The Mouse Aging Tool Suite')
 
 def power_analysis_page():
     st.sidebar.header('Power Analysis')
@@ -318,8 +318,6 @@ def bootstrap_page():
                 Bootstrapping is a technique used to simulate the variability one might expect in an actual experiment by drawing repeated random samples from a dataset. In this case, we are using the survival data, as visualized in the Kaplan-Meier curve above, to understand potential variation in our experiment outcomes. 
 
                 For our bootstrap analysis, we take a random subsample from the selected data, with a size equivalent to our initial estimate of required mice (as calculated above). This acts as a simulated experiment, where we start with the estimated number of mice and observe how many reach the desired age. By doing this thousands of times, we simulate the experiment under many different scenarios to understand the potential range of outcomes.
-
-                The table below shows the results of this bootstrapping. The "2.5th Percentile" and "97.5th Percentile" provide what is often termed a 95% confidence interval. This interval gives a range in which we can be 95% confident that the actual number of required mice will fall, were we to conduct the experiment many times.
                 """)
 
                 # Setting up a figure for histograms
@@ -332,18 +330,19 @@ def bootstrap_page():
                     bootstrap_results.append([
                         sex_option, 
                         ceil(bootstrap_series.median()), 
-                        ceil(bootstrap_series.quantile(0.025)), 
                         ceil(bootstrap_series.quantile(0.80)),
                         ceil(bootstrap_series.quantile(0.90)),
                         ceil(bootstrap_series.quantile(0.95)),
-                        ceil(bootstrap_series.quantile(0.975))
+                        ceil(bootstrap_series.quantile(0.99))
                     ])
 
 
                     # Plotting histogram using the stored results
                     bootstrap_min = int(bootstrap_series.min())
                     bootstrap_max = int(bootstrap_series.max())
-                    axes_hist[idx].hist(bootstrap_series, bins=range(bootstrap_min, bootstrap_max + 1), color='skyblue', edgecolor='black')
+                    axes_hist[idx].hist(bootstrap_series, bins=20, color='skyblue', edgecolor='black')
+                    # alternatively use a step size of one in the above line, but note that b/c of the discrete nature of survival probabilities, the histograms will have gaps at certain discrete values:
+                    # bins=range(bootstrap_min, bootstrap_max + 1)
                     axes_hist[idx].axvline(bootstrap_series.median(), color='red', linestyle='dashed', linewidth=1)
                     axes_hist[idx].set_title(f'{sex_option} Required Mice Distribution')
                     axes_hist[idx].set_xlabel('Required Mice')
@@ -366,7 +365,7 @@ def bootstrap_page():
                     axes[idx].legend()
 
                 # Create and show the table
-                bootstrap_df = pd.DataFrame(bootstrap_results, columns=["Sex", "Median Required Mice", "2.5th Percentile", "80th", "90th", "95th", "97.5th"])
+                bootstrap_df = pd.DataFrame(bootstrap_results, columns=["Sex", "Median", "80th", "90th", "95th", "99th"])
                 bootstrap_df.set_index("Sex", inplace=True)
                 st.table(bootstrap_df)
 
