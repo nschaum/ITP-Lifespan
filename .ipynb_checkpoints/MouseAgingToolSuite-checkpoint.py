@@ -25,12 +25,23 @@ def power_analysis_page():
     st.sidebar.write("Here, the two-sample independent t-test with the function smp.TTestIndPower().solve_power from the statsmodels.stats.power module has been employed.")
     power_range = (0.7, 0.90)
     effect_size_range = (0.1, 0.3)
+    
+    # Compute for males
     male_power_values, male_effect_size_values, male_sample_sizes = compute_required_sample_size('m', alpha, power_range, effect_size_range)
+    
+    # Compute for females
     female_power_values, female_effect_size_values, female_sample_sizes = compute_required_sample_size('f', alpha, power_range, effect_size_range)
-    vmin_value = min(male_sample_sizes.min(), female_sample_sizes.min())
-    vmax_value = max(male_sample_sizes.max(), female_sample_sizes.max())
+
+    # Compute for both sexes combined
+    combined_power_values, combined_effect_size_values, combined_sample_sizes = compute_required_sample_size(None, alpha, power_range, effect_size_range)
+    
+    vmin_value = min(male_sample_sizes.min(), female_sample_sizes.min(), combined_sample_sizes.min())
+    vmax_value = max(male_sample_sizes.max(), female_sample_sizes.max(), combined_sample_sizes.max())
     norm = PowerNorm(gamma=0.5, vmin=vmin_value, vmax=vmax_value)
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 15))
+    
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 20))
+    
+    # Male heatmap
     sns.heatmap(male_sample_sizes, cmap='YlGnBu', annot=True, fmt=".0f", 
                 cbar_kws={'label': 'Required Sample Size'}, 
                 ax=ax1, 
@@ -41,6 +52,8 @@ def power_analysis_page():
     ax1.set_title("Males")
     ax1.set_xlabel("Power (%)")
     ax1.set_ylabel("Desired Effect Size (%)")
+
+    # Female heatmap
     sns.heatmap(female_sample_sizes, cmap='YlGnBu', annot=True, fmt=".0f", 
                 cbar_kws={'label': 'Required Sample Size'}, 
                 ax=ax2, 
@@ -51,8 +64,22 @@ def power_analysis_page():
     ax2.set_title("Females")
     ax2.set_xlabel("Power (%)")
     ax2.set_ylabel("Desired Effect Size (%)")
+
+    # Combined heatmap
+    sns.heatmap(combined_sample_sizes, cmap='YlGnBu', annot=True, fmt=".0f", 
+                cbar_kws={'label': 'Required Sample Size'}, 
+                ax=ax3, 
+                yticklabels=[f"{x:.1%}" for x in combined_effect_size_values], 
+                xticklabels=[f"{x:.1%}" for x in combined_power_values],
+                vmin=vmin_value, vmax=vmax_value,
+                norm=norm)
+    ax3.set_title("Combined Sexes")
+    ax3.set_xlabel("Power (%)")
+    ax3.set_ylabel("Desired Effect Size (%)")
+    
     plt.tight_layout()
     st.pyplot(fig)
+
 
 # Cost Estimation Page Code
 def cost_estimation_page():
@@ -176,26 +203,31 @@ def cost_estimation_page():
     plt.tight_layout()
     st.pyplot(fig)
 
-def compute_required_sample_size(sex_filter, alpha, power_range, effect_size_range):
+def compute_required_sample_size(sex_filter=None, alpha=0.05, power_range=(0.7, 0.9), effect_size_range=(0.1, 0.3)):
     power_values = np.linspace(power_range[0], power_range[1], 30)
     effect_size_values = np.linspace(effect_size_range[0], effect_size_range[1], 30)
-    
-    lifespans = data[(data['sex'] == sex_filter) & (data['group'] == 'Control')]['age(days)']
+
+    # Select data based on sex_filter
+    if sex_filter is None:
+        lifespans = data[data['group'] == 'Control']['age(days)']  # Including both sexes
+    else:
+        lifespans = data[(data['sex'] == sex_filter) & (data['group'] == 'Control')]['age(days)']
+
     mean_lifespan = lifespans.mean()
     std_lifespan = lifespans.std()
 
-
     sample_sizes = np.zeros((len(effect_size_values), len(power_values)))
-    
+
     for i, desired_effect_percentage in enumerate(effect_size_values):
         effect_size_days = desired_effect_percentage * mean_lifespan
         cohens_d = effect_size_days / std_lifespan
-        
+
         for j, power in enumerate(power_values):
             sample_size = smp.TTestIndPower().solve_power(effect_size=cohens_d, alpha=alpha, power=power)
             sample_sizes[i, j] = ceil(sample_size)  # Round up to the next integer
 
     return power_values, effect_size_values, sample_sizes
+
 
 def bootstrap_page():
 
